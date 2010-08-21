@@ -1,0 +1,7 @@
+.curseur {
+	display:inline-block;
+	width:1px;
+	height:1em;
+	background-color:black;
+	margin:0 1px;
+}
