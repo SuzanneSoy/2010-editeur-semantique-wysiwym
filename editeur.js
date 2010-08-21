@@ -23,7 +23,6 @@ function curseurClignotant() {
 }
 
 function curseurGauche() {
-	console.log("gauche");
 	var curseur = $(".curseur");
 	var p = curseur.prev();
 	var n = curseur.next();
@@ -33,11 +32,9 @@ function curseurGauche() {
 }
 
 function curseurHaut() {
-	console.log("haut");
 }
 
 function curseurDroite() {
-	console.log("droite");
 	var curseur = $(".curseur");
 	var p = curseur.prev();
 	var n = curseur.next();
@@ -47,7 +44,6 @@ function curseurDroite() {
 }
 
 function curseurBas() {
-	console.log("bas");
 }
 
 function raccourcisClavier() {
