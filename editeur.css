@@ -2,6 +2,10 @@
 	display:inline-block;
 	width:1px;
 	height:1em;
-	background-color:black;
+	background-color:transparent;
 	margin:0 1px;
+}
+
+.curseur.affiché {
+	background-color:black;
 }
