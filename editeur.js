@@ -1,6 +1,7 @@
 $(function() {
+	var lorem = "Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet.";
 	var éditeurs = $(".editeur-semantique");
-	éditeurs.append('<span class="text">hello </span><span class="curseur"></span><span class="text">world</span>');
+	éditeurs.append('<span class="elem-paragraphe"><span class="elem-important"><span class="texte">hello </span><span class="curseur"></span><span class="texte">world' + lorem + '</span></span><span class="texte">, bonjour monde !</span></span>');
 	curseurClignotant();
 	raccourcisClavier();
 	curseurGauche();
