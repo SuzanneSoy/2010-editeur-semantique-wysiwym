@@ -1,3 +1,20 @@
+.conteneur-esem {
+	border: thin solid red; /* DEBUG */
+}
+
+.conteneur-esem .aperçu {
+	border: thin solid green;
+}
+
+.conteneur-esem .editeur {
+	border: thin solid blue;
+}
+
+.conteneur-esem .element {
+}
+
+
+
 .curseur {
 	display:inline-block;
 	width:1px;
@@ -9,23 +26,23 @@
 	background-color:black;
 }
 
-.elem-paragraphe {
+.conteneur-esem .element.paragraphe {
 	border: thick solid #ddd;
 	display: block;
 }
 
-.elem-paragraphe:before {
+.conteneur-esem .element.paragraphe:before {
 	content: "Paragraphe";
 	font-size: smaller;
 	background-color: #ddd;
 	display:block;
 }
 
-.elem-important {
+.conteneur-esem .element.important {
 	background-color: mistyrose;
 }
 
-.elem-important:before {
+.conteneur-esem .element.important:before {
 	content: "Important";
 	padding: 0 0.3em;
 	font-size: smaller;
