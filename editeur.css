@@ -1,29 +1,46 @@
 .conteneur-esem {
-	border: thin solid red; /* DEBUG */
+	border: thin solid black;
 }
 
 .conteneur-esem .aperçu {
-	border: thin solid green;
+	margin: 0.5em;
 }
 
-.conteneur-esem .editeur {
-	border: thin solid blue;
+.conteneur-esem .boutons {
+	margin: 0.5em;
+}
+
+.conteneur-esem .éditeur {
+	margin: 0.5em;
 }
 
 .conteneur-esem .element {
+	margin-bottom: 0.1em;
 }
 
 
-
-.curseur {
-	display:inline-block;
-	width:1px;
-	height:1em;
-	background-color:transparent;
+.conteneur-esem .boutons .bouton {
+	border: thin solid black;
+	background-color: white;
 }
 
-.curseur.affiché {
-	background-color:black;
+
+.conteneur-esem .element.document {
+	display: block;
+}
+
+.conteneur-esem .element.titre {
+	font-weight: bold;
+	font-size: large;
+	border: thick solid #ddd;
+	display: block;
+}
+
+.conteneur-esem .element.titre:before {
+	content: "Titre";
+	font-weight: bold;
+	padding: 0 0.3em;
+	background-color: #ddd;
 }
 
 .conteneur-esem .element.paragraphe {

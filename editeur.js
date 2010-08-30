@@ -12,15 +12,16 @@ $(function() {
 	});
 });
 
-$.fn.extend()
-
 function éditeurSémantique(textareaÉditeur) {
-	conteneur = $('<div class="conteneur-esem"/>');
-	éditeur = $(textareaÉditeur).removeClass("éditeur-semantique").addClass("éditeur");
-	aperçu = $('<div class="aperçu"/>');
+	var conteneur = $('<div class="conteneur-esem"/>');
+	var éditeur = $(textareaÉditeur).removeClass("éditeur-semantique").addClass("éditeur");
+	var boutons = $('<div class="boutons"/>');
+	var aperçu = $('<div class="aperçu"/>');
+	var elementActif = null;
 	
 	éditeur.replaceWith(conteneur);
 	conteneur.append(aperçu);
+	conteneur.append(boutons);
 	conteneur.append(éditeur);
 	
 	var xml = $("<document/>").append(éditeur.text()); // Est-ce portable ?.
@@ -29,15 +30,27 @@ function éditeurSémantique(textareaÉditeur) {
 	function init() {
 		xmlVersDom(xml, aperçu);
 		sélectionElement(aperçu.children().first()); // assertion : type == Document
+		bouton("important", function(debut, fin) {
+			var t = elementActif.text();
+			var t1 = créerElement("texte").text(t.substring(0,debut));
+			var t2 = créerElement("texte").text(t.substring(debut,fin));
+			var t2important = créerElement("important").append(t2);
+			var t3 = créerElement("texte").text(t.substring(fin));
+			elementActif.replaceWith(t1);
+			t2important.insertAfter(t1);
+			t3.insertAfter(t2important);
+			sélectionElement(t2);
+		});
+	}
+	
+	function bouton(texte, fonction) {
+		boutons.append($('<input type="button" class="bouton"/>').val(texte).click(function(e) {
+			fonction(éditeur.get(0).selectionStart, éditeur.get(0).selectionEnd);
+		}));
 	}
 	
 	function xmlVersDom(xml,htmlParent) {
 		var htmlElem = créerElement(xml.get(0).tagName.toLowerCase()).appendTo(htmlParent);
-		
-		htmlElem.click(function(e) {
-			sélectionElement(htmlElem);
-			return false;
-		});
 		
 		if (xml.get(0).tagName.toLowerCase() == "texte") {
 			htmlElem.append(xml.text());
@@ -49,12 +62,18 @@ function éditeurSémantique(textareaÉditeur) {
 	}
 	
 	function créerElement(type) {
-		return $('<span class="element"/>')
+		var el = $('<span class="element"/>')
 			.addClass(type)
-			.data("type", type);
+			.data("type", type)
+			.click(function(e) {
+				sélectionElement(el);
+				return false;
+			});
+		return el;
 	}
 	
 	function sélectionElement(e) {
+		elementActif = e;
 		if (e.data("type") == "texte") {
 			éditeurAttacher(e);
 		} else {
