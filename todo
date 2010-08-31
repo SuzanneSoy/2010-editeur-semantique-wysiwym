@@ -1,0 +1,13 @@
+Ne pas créer de noeud <texte> vide (sauf explicitement).
+Petit refactor pour pouvoir spécifier un nombre arbitraire de types de noeud.
+Différence noeuds Multiligne (paragraphe), monoligne (titre) en-ligne (important, emphase).
+Toutes les opérations sur l'arbre :
+ - Nouveau noeud (avant, après, dans, autour) par rapport à sélection ou à un noeud (transformer la sélection en noeud texte, puis utiliser la même fonction que pour un noeud "normal");
+ - Supprimer un noeud et son contenu, supprimer et garder le contenu;
+ - Modifier le type d'un noeud (important -> emphase par ex.);
+ - Couper / Copier / Coller un noeud ou une sélection. Le collage utilise la même fonction que l'insertion, couper utilise "copier" et "supprimer".
+ - Pour ces opérations, utiliser un "langage" de réécriture contextuelle ?
+Pouvoir spécifier des restrictions sur la structure (tel noeud peut/doit contenir tel noeud, etc.)
+Propriétés d'un noeud (cible pour les liens, source pour les images), pouvoir spécifier quel dialogue permet l'édition des propriétés, plus l'apparence du noeud (icône lien -> quand on clique, ouvre le dialogue ?). + pouvoir manipuler le contenu (texte) du noeud directement depuis le "dialogue". En fait, le "dialogue" ne devrait être qu'une variation du textarea "éditeur".
+Afficher "texte" pour les noeuds texte ?
+Faire du M(VC) !!! Modèle -> objet javascript (DOM + focus), vue/contrôleur -> arbre, aperçu, paneau d'édition
