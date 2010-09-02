@@ -1,22 +1,61 @@
 var MULTI_LIGNE = 0;
 var MONO_LIGNE = 1;
 var EN_LIGNE = 2;
+
+function appendVuesEnfants(html, typeVue) {
+	for (var i = 0; i < this.contenu.length; i++) {
+		html.append(this.contenu[i].créerVue(typeVue));
+	}
+}
 var typesNoeud = {
-	document:   { catégorie: MULTI_LIGNE, enfants: ['titre', 'paragraphe'] },
-	titre:      { catégorie: MONO_LIGNE,  enfants: ['important', 'texte'] },
-	paragraphe: { catégorie: MULTI_LIGNE, enfants: ['important', 'texte'] },
-	important:  { catégorie: EN_LIGNE,    enfants: ['texte'] },
-	lien:       { catégorie: EN_LIGNE,    enfants: ['texte'], 'propriétés': ['cible'] },
-	texte:      { catégorie: EN_LIGNE,    enfants: [] },
-	
+	document: {
+		catégorie: MULTI_LIGNE,
+		enfants: ['titre', 'paragraphe'],
+		vue: function() {
+			var ret = $('<div class="conteneur-esem"/>');
+			appendVuesEnfants.call(this, ret, 'aperçu');
+			return ret;
+		}
+	},
+	titre: {
+		catégorie: MONO_LIGNE,
+		enfants: ['important', 'texte'],
+		vue: function() {
+			var ret = $('<div class="noeud titre mono-ligne"/>');
+			appendVuesEnfants.call(this, ret, 'aperçu');
+			return ret;
+		}
+	},
+	paragraphe: {
+		catégorie: MULTI_LIGNE,
+		enfants: ['important', 'texte'],
+		vue: function() {
+			var ret = $('<div class="noeud paragraphe multi-ligne"/>');
+			appendVuesEnfants.call(this, ret, 'aperçu');
+			return ret;
+		}
+	},
+	important: {
+		catégorie: EN_LIGNE,
+		enfants: ['texte'],
+		vue: function() {
+			var ret = $('<span class="noeud important en-ligne"/>');
+			appendVuesEnfants.call(this, ret, 'aperçu');
+			return ret;
+		}
+	},
 	lien: {
-		aperçu: function(n) {
-			return aperçu_noeud(n)
-				.children(".étiquette")
-				.append('<img src="..." alt="">');
-		},
-		édition: function(n) {
-			return édition_noeud(n).prepend('<input type="text" value="propriété <cible>"/>')
+		catégorie: EN_LIGNE,
+		enfants: ['texte'],
+		vue: {
+			aperçu: function(typeVue) {
+				return aperçu_noeud(this)
+					.children(".étiquette")
+					.append('<img src="..." alt="">');
+			},
+			édition: function(n) {
+				return édition_noeud(n).prepend('<input type="text" value="propriété <cible>"/>')
+			},
 		},
 		propriétés: {
 			'interne': false,
@@ -24,11 +63,18 @@ var typesNoeud = {
 		}
 	},
 	texte: {
-		aperçu: function(n) {
-			return $("<span/>").bind_text(n.texte);
-		},
-		édition: function(n) {
-			return $("<textarea/>").bind_val(n.texte);
+		catégorie: EN_LIGNE,
+		enfants: [],
+		vue: {
+			aperçu: function(typeVue) {
+				return $('<span class="noeud texte en-ligne"/>')
+					/* .append($('<span class="étiquette">texte</span>')) */
+					.append($('<span class="contenu"/>').text(this.texte));
+				//  .bind_text(this.texte);
+			},
+			édition: function(n) {
+				return $("<textarea/>").bind_val(n.texte);
+			},
 		},
 		propriétés: {
 			texte: new valeur("")
@@ -36,35 +82,55 @@ var typesNoeud = {
 	}
 };
 
+$(function() {
+	$(".éditeur-semantique").each(function(i,e) {
+		éditeurSémantique(e);
+	});
+});
+
 function éditeurSémantique(textareaOrigine) {
+	// XML -> modèle
 	var textareaOrigine = $(textareaOrigine);
 	var xml = $("<document/>").append(textareaOrigine.val()); // Est-ce portable ?.
-	
 	var modèle = xmlVersModèle(xml.get(0));
-	console.log(modèle);
+	
+	// Vue
+	var vue = modèle.créerVue(null);
+	textareaOrigine.replaceWith(vue);
+	
+	// Debug
 	m = modèle;
+	v = vue;
 }
 
 function xmlVersModèle(xml) {
-	function recursion(xml, parent) {
+	function recursion(xml, parent, document) {
 		var tag = xml.tagName.toLowerCase(); // TODO : si tagName n'est pas toujours un "vrai" string, .toString() .
 		var ret = {
 			type: tag,
 			texte: (tag == "texte") ? $(xml).text() : '',
-			parent: parent,
-			document: null, // TODO
+			contenu: $(xml).children().map(function (i,e) {
+				return recursion(e, {p:ret}, document);
+			}).get(),
+			
+			// Navigation
+			parent: function() { return parent.p; },
+			document: function() { return document.d; },
+
+			// Modèle : fonctions principales.
 			positionDansParent: function() {
-				return this.parent.contenu.indexOf(this); // Mouais...
+				return this.parent().contenu.indexOf(this); // Mouais...
 			},
 			insérer: function(noeud, position) {
 				this.contenu.splice(position, 0, noeud);
-				this.contenu[position].parent = this;
+				this.contenu[position].parent() = this;
 				// TODO : modifier la vue
 			},
 			supprimerEnfant: function(position) {
 				return this.contenu.splice(position, 1);
 			},
 			modifierType: function(nouveauType) {
+				// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
 				// TODO : vérifier si le parent peut bien contenir ce type
 				this.type = nouveauType;
 				// TODO : modifier la vue
@@ -75,16 +141,16 @@ function xmlVersModèle(xml) {
 				// TODO : modifier la vue
 			},
 
-			// Fonctions secondaires :
+			// Modèle : Fonctions secondaires :
 
 			supprimer: function() {
-				return this.parent.supprimerEnfant(this.positionDansParent());
+				return this.parent().supprimerEnfant(this.positionDansParent());
 			},
-			insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur)
-				this.parent.insérer(noeud, this.positionDansParent());
+			insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur).
+				this.parent().insérer(noeud, this.positionDansParent());
 			},
 			insérerAprès: function(noeud) { // insère noeud après this (à l'extérieur)
-				this.parent.insérer(noeud, this.positionDansParent() + 1);
+					this.parent().insérer(noeud, this.positionDansParent() + 1);
 			},
 			insérerDébut: function(noeud) { // insère noeud au début de this (à l'intérieur)
 				this.insérer(noeud, 0);
@@ -94,14 +160,14 @@ function xmlVersModèle(xml) {
 			},
 			emballer: function(noeud) { // insère noeud à la place de this, et met this dedans
 				var pos = this.positionDansParent();
-				var parent = this.parent;
+				var parent = this.parent();
 				var n = parent.supprimerEnfant(pos);
 				parent.insérer(noeud, pos);
 				noeud.insérer(n, 0); // TODO ? noeud.setContenu(this);
 			},
 			remplacer: function () {
 				var pos = this.positionDansParent();
-				var parent = this.parent;
+				var parent = this.parent();
 				parent.supprimerEnfant(pos);
 				for (var i = 0; i < arguments.length; i++) {
 					parent.insérer(arguments[i], pos++);
@@ -113,16 +179,34 @@ function xmlVersModèle(xml) {
 					c[i] = this.supprimerEnfant(i); // TODO : l'insertion devrait elle-même supprimer le noeud s'il est déjà inséré quelque part.
 				}
 				this.remplacer.apply(this, c);
+			},
+
+			// Vue
+			créerVue: function(typeVue) {
+				surcharge = typesNoeud[tag].vue;
+				if (typeof surcharge == "function") {
+					return surcharge.call(this, typeVue);
+				} else if (typeof surcharge == "object" && typeof surcharge[typeVue] == "function") {
+					return surcharge[typeVue].call(this);
+				} else {
+					var ret = $('<div/>').text("" + typeVue);
+					for (var i = 0; i < this.contenu.length; i++) {
+						ret.append(this.contenu[i].créerVue('aperçu'));
+					}
+					return ret;
+				}
 			}
 		};
-		ret.contenu = $(xml).children().map(function (i,e) {
-			return recursion(e, ret);
-		}).get();
 		return ret;
 	}
-	var ret = recursion(xml, null);
-	/* ret.parent = ret; // Rhôôô le hack ! */
-	return ret;
+
+	var _doc = {d: 42};
+	var _par = {p: 42};
+	doc = recursion(xml, _par, _doc);
+	_doc.d = doc;
+	_par.p = doc;
+	
+	return doc;
 }
 
 /* Modèle :
@@ -133,11 +217,12 @@ function xmlVersModèle(xml) {
 
 vue.supprimerVue();
 vue.supprimerEnfant(position);
-noeud.créerVue(noeud, typeVue);
+noeud.créerVue(typeVue);
 vue.insérerEnfant(noeud_enfant, position) { insérer_dans_vue_courante_à_position(créerVue(noeud_enfant), position); }
 vue.setPropriété(propriété, valeur);
 vue.setActif(bool);
 document.noeudActif(noeud); // ?
+document.créerVue($(html_element));
 
 =================
 
@@ -151,20 +236,6 @@ n.détacher();                // ?
 
 // Contrôleur :
 noeud.document.nouveauNoeud()
-
-noeud.insérerAvant(n2)
-noeud.insérerAprès(n2)
-noeud.insérerDébut(n2)
-noeud.insérerFin(n2)
-noeud.insérerAutour(n2)
-
-noeud.supprimer()
-noeud.remplacer(n2, n3, ...) // remplacer n par n2, ... n(n+1)
-noeud.supprimer_en_gardant_le_contenu() // TODO : trouver un nom meilleur. jquery : unwrap
-
-m - noeud.modifierType(nouveaType); // TODO ! lien -> texte ou important ou ... doit préserver le texte du lien !
-
-m - noeud.setPropriété(propriété, valeur);
 
 */
 
@@ -224,12 +295,6 @@ function édition_noeud_texte(n) {
 
 
 
-
-$(function() {
-	$(".éditeur-semantique").each(function(i,e) {
-		éditeurSémantique(e);
-	});
-});
 
 function éditeurSémantique_(textareaÉditeur) {
 	var conteneur = $('<div class="conteneur-esem"/>');
