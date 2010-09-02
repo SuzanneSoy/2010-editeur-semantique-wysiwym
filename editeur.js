@@ -36,23 +36,135 @@ var typesNoeud = {
 	}
 };
 
+function éditeurSémantique(textareaOrigine) {
+	var textareaOrigine = $(textareaOrigine);
+	var xml = $("<document/>").append(textareaOrigine.val()); // Est-ce portable ?.
+	
+	var modèle = xmlVersModèle(xml.get(0));
+	console.log(modèle);
+	m = modèle;
+}
+
+function xmlVersModèle(xml) {
+	function recursion(xml, parent) {
+		var tag = xml.tagName.toLowerCase(); // TODO : si tagName n'est pas toujours un "vrai" string, .toString() .
+		var ret = {
+			type: tag,
+			texte: (tag == "texte") ? $(xml).text() : '',
+			parent: parent,
+			document: null, // TODO
+			positionDansParent: function() {
+				return this.parent.contenu.indexOf(this); // Mouais...
+			},
+			insérer: function(noeud, position) {
+				this.contenu.splice(position, 0, noeud);
+				this.contenu[position].parent = this;
+				// TODO : modifier la vue
+			},
+			supprimerEnfant: function(position) {
+				return this.contenu.splice(position, 1);
+			},
+			modifierType: function(nouveauType) {
+				// TODO : vérifier si le parent peut bien contenir ce type
+				this.type = nouveauType;
+				// TODO : modifier la vue
+			},
+			modifierPropriété: function(propriété, valeur) {
+				// TODO : vérifier si ce type peut avoir cette propriété
+				this[propriété] = valeur;
+				// TODO : modifier la vue
+			},
+
+			// Fonctions secondaires :
+
+			supprimer: function() {
+				return this.parent.supprimerEnfant(this.positionDansParent());
+			},
+			insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur)
+				this.parent.insérer(noeud, this.positionDansParent());
+			},
+			insérerAprès: function(noeud) { // insère noeud après this (à l'extérieur)
+				this.parent.insérer(noeud, this.positionDansParent() + 1);
+			},
+			insérerDébut: function(noeud) { // insère noeud au début de this (à l'intérieur)
+				this.insérer(noeud, 0);
+			},
+			insérerFin: function(noeud) { // insère noeud à la fin de this (à l'intérieur)
+				this.insérer(noeud, this.contenu.length);
+			},
+			emballer: function(noeud) { // insère noeud à la place de this, et met this dedans
+				var pos = this.positionDansParent();
+				var parent = this.parent;
+				var n = parent.supprimerEnfant(pos);
+				parent.insérer(noeud, pos);
+				noeud.insérer(n, 0); // TODO ? noeud.setContenu(this);
+			},
+			remplacer: function () {
+				var pos = this.positionDansParent();
+				var parent = this.parent;
+				parent.supprimerEnfant(pos);
+				for (var i = 0; i < arguments.length; i++) {
+					parent.insérer(arguments[i], pos++);
+				}
+			},
+			déballer: function() { // Contraire de emballer : supprime this, mais garde le contenu.
+				var c = [];
+				for (var i = 0; i < this.contenu.length; i++) {
+					c[i] = this.supprimerEnfant(i); // TODO : l'insertion devrait elle-même supprimer le noeud s'il est déjà inséré quelque part.
+				}
+				this.remplacer.apply(this, c);
+			}
+		};
+		ret.contenu = $(xml).children().map(function (i,e) {
+			return recursion(e, ret);
+		}).get();
+		return ret;
+	}
+	var ret = recursion(xml, null);
+	/* ret.parent = ret; // Rhôôô le hack ! */
+	return ret;
+}
+
 /* Modèle :
 
 { document, noeudActif, pressePapiers }
 
-nouveauNoeud()
+// Todo : où indiquer TypeVue (aperçu, édition, boutons(?), arbre) ?
 
-insérerAvant(n)
-insérerAprès(n)
-insérerDébut(n)
-insérerFin(n)
-insérerAutour(n)
+vue.supprimerVue();
+vue.supprimerEnfant(position);
+noeud.créerVue(noeud, typeVue);
+vue.insérerEnfant(noeud_enfant, position) { insérer_dans_vue_courante_à_position(créerVue(noeud_enfant), position); }
+vue.setPropriété(propriété, valeur);
+vue.setActif(bool);
+document.noeudActif(noeud); // ?
 
-supprimer()
-remplacer(n1, n2, ...) // remplacer par n1, ... nn
-supprimer_en_gardant_le_contenu() // TODO : trouver un nom meilleur.
+=================
 
-modifierType(nouveau_type); // TODO ! lien -> texte ou important ou ... doit préserver le texte du lien !
+// ???
+n = nouveauNoeud();
+nparent.attacherÀPosition(n,3);
+nparent.détacherPosition(3); // ?
+n.détacher();                // ?
+
+=================
+
+// Contrôleur :
+noeud.document.nouveauNoeud()
+
+noeud.insérerAvant(n2)
+noeud.insérerAprès(n2)
+noeud.insérerDébut(n2)
+noeud.insérerFin(n2)
+noeud.insérerAutour(n2)
+
+noeud.supprimer()
+noeud.remplacer(n2, n3, ...) // remplacer n par n2, ... n(n+1)
+noeud.supprimer_en_gardant_le_contenu() // TODO : trouver un nom meilleur. jquery : unwrap
+
+m - noeud.modifierType(nouveaType); // TODO ! lien -> texte ou important ou ... doit préserver le texte du lien !
+
+m - noeud.setPropriété(propriété, valeur);
 
 */
 
@@ -119,7 +231,7 @@ $(function() {
 	});
 });
 
-function éditeurSémantique(textareaÉditeur) {
+function éditeurSémantique_(textareaÉditeur) {
 	var conteneur = $('<div class="conteneur-esem"/>');
 	var éditeur = $(textareaÉditeur).removeClass("éditeur-semantique").addClass("éditeur");
 	var boutons = $('<div class="boutons"/>');
