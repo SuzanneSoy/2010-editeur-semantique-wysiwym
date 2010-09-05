@@ -12,5 +12,4 @@ Afficher "texte" pour les noeuds texte ?
 Faire du M(VC) !!! Modèle -> objet javascript (DOM + focus), vue/contrôleur -> arbre, aperçu, paneau d'édition
 
 Court-terme :
-corriger et compléter typesNoeud;
 nettoyer typesNoeud (toujours avoir une fonction vue() au lieu d'un tableau, fonctions pour créer les vues d'aperçu courantes, appendVuesEnfants -> $.appendVuesEnfants(), ...).

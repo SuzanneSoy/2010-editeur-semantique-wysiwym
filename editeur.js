@@ -2,59 +2,49 @@ var MULTI_LIGNE = 0;
 var MONO_LIGNE = 1;
 var EN_LIGNE = 2;
 
-function appendVuesEnfants(html, typeVue) {
-	for (var i = 0; i < this.contenu.length; i++) {
-		html.append(this.contenu[i].créerVue(typeVue));
+$.fn.extend({
+	appendVuesEnfants: function (modèle, typeVue) {
+		for (var i = 0; i < modèle.contenu.length; i++) {
+			this.append(modèle.contenu[i].créerVue(typeVue));
+		}
 	}
-}
+});
+
 var typesNoeud = {
 	document: {
 		catégorie: MULTI_LIGNE,
 		enfants: ['titre', 'paragraphe'],
+		// surcharge de la _fonction_ "vue" (pas le tableau "vues").
 		vue: function() {
 			var ret = $('<div class="conteneur-esem"/>');
-			appendVuesEnfants.call(this, ret, 'aperçu');
+			ret.appendVuesEnfants(this, 'aperçu');
 			return ret;
 		}
 	},
 	titre: {
 		catégorie: MONO_LIGNE,
 		enfants: ['important', 'texte'],
-		vue: function() {
-			var ret = $('<div class="noeud titre mono-ligne"/>');
-			appendVuesEnfants.call(this, ret, 'aperçu');
-			return ret;
-		}
 	},
 	paragraphe: {
 		catégorie: MULTI_LIGNE,
 		enfants: ['important', 'texte'],
-		vue: function() {
-			var ret = $('<div class="noeud paragraphe multi-ligne"/>');
-			appendVuesEnfants.call(this, ret, 'aperçu');
-			return ret;
-		}
 	},
 	important: {
 		catégorie: EN_LIGNE,
 		enfants: ['texte'],
-		vue: function() {
-			var ret = $('<span class="noeud important en-ligne"/>');
-			appendVuesEnfants.call(this, ret, 'aperçu');
-			return ret;
-		}
 	},
 	lien: {
 		catégorie: EN_LIGNE,
 		enfants: ['texte'],
-		vue: {
-			aperçu: function(typeVue) {
-				return aperçu_noeud(this)
-					.children(".étiquette")
-					.append('<img src="..." alt="">');
+		vues: {
+			aperçu: function() {
+				var ret = $('<span class="noeud lien en-ligne"/>');
+				$('<span class="cible"/>').text(this.propriétés.cible).appendTo(ret);
+				$('<span class="texte"/>').text(this.texte).appendTo(ret);
+				return ret;
 			},
-			édition: function(n) {
-				return édition_noeud(n).prepend('<input type="text" value="propriété <cible>"/>')
+			édition: function() {
+				return édition_noeud(this).prepend('<input type="text" value="<<<propriétés.cible>>>"/>')
 			},
 		},
 		propriétés: {
@@ -65,22 +55,58 @@ var typesNoeud = {
 	texte: {
 		catégorie: EN_LIGNE,
 		enfants: [],
-		vue: {
+		vues: {
 			aperçu: function(typeVue) {
 				return $('<span class="noeud texte en-ligne"/>')
-					/* .append($('<span class="étiquette">texte</span>')) */
-					.append($('<span class="contenu"/>').text(this.texte));
+					.text(this.texte);
 				//  .bind_text(this.texte);
 			},
 			édition: function(n) {
 				return $("<textarea/>").bind_val(n.texte);
 			},
-		},
-		propriétés: {
-			texte: new valeur("")
 		}
 	}
 };
+
+var typeNoeudDéfaut = {
+	catégorie: EN_LIGNE,
+	enfants: ['texte'],
+	vues: {
+		aperçu: function() {
+			var ct = {};
+			ct[MULTI_LIGNE] = { tag: 'div', cat: 'multi-ligne' };
+			ct[MONO_LIGNE] = { tag: 'div', cat: 'mono-ligne' };
+			ct[EN_LIGNE] = { tag: 'span', cat: 'en-ligne' };
+			ct = ct[typesNoeud[this.type].catégorie];
+			
+			var html = $('<' + ct.tag + ' class="noeud"/>');
+			html.addClass(this.type);
+			html.addClass(ct.cat);
+			html.appendVuesEnfants(this, 'aperçu');
+			return html;
+		},
+		edition: function() {
+			return $('<div class="info">Cliquez sur du texte pour le modifier.</div>');
+		}
+	},
+	vue: function (typeVue) {
+		return typesNoeud[this.type].vues[typeVue].call(this, typeVue);
+	},
+	propriétés: {}
+}
+
+function nettoyerTypesNoeud(typesNoeud) {
+	var tn = {};
+	
+	for (var i in typesNoeud) {
+		tn[i] = $.extend({}, typeNoeudDéfaut, typesNoeud[i]);
+		tn[i].vues = $.extend({}, typeNoeudDéfaut.vues, typesNoeud[i].vues);
+	}
+
+	return tn;
+}
+
+typesNoeud = nettoyerTypesNoeud(typesNoeud);
 
 $(function() {
 	$(".éditeur-semantique").each(function(i,e) {
@@ -112,6 +138,7 @@ function xmlVersModèle(xml) {
 			contenu: $(xml).children().map(function (i,e) {
 				return recursion(e, {p:ret}, document);
 			}).get(),
+			propriétés: typesNoeud[tag].propriétés,
 			
 			// Navigation
 			parent: function() { return parent.p; },
@@ -197,6 +224,13 @@ function xmlVersModèle(xml) {
 				}
 			}
 		};
+		
+		for (var i in ret.propriétés) {
+			var propval = $(xml).attr(i);
+			if (typeof propval != "undefined") {
+				ret.propriétés[i]
+			}
+		}
 		return ret;
 	}
 
@@ -258,30 +292,6 @@ function valeur(v) { // TODO : voir si ça peut marcher aussi pour des élément
 	}
 	/* TODO : piquer le code de : http://github.com/jsmaniac/2010-ide-langage-grunt-flin607/blob/master/jside4/callbacks.js */
 	return f;
-}
-
-function aperçu_noeud(n) {
-	switch (noeud.type.catégorie) {
-	case MULTI_LIGNE:
-		var tag='div';
-		var cat='multi-ligne';
-		break;
-	case MONO_LIGNE:
-		var tag='div';
-		var cat='mono-ligne';
-		break;
-	case EN_LIGNE:
-		var tag='span';
-		var cat='en-ligne';
-		break;
-	}
-	
-	var html = $('<' + tag + ' class="noeud"/>');
-	html.addClass(n.type.classe).addClass(cat);
-	$('<span class="étiquette"/>').text(n.type.étiquette).appendTo(html);
-	$('<span class="contenu"/>').text(n.type.étiquette).appendTo(html);
-	
-	return html;
 }
 
 function unique_enfant_texte(n) {

@@ -14,55 +14,85 @@
 	margin: 0.5em;
 }
 
-.conteneur-esem .noeud {
-	margin-bottom: 0.1em;
-}
-
-
 .conteneur-esem .boutons .bouton {
 	border: thin solid black;
 	background-color: white;
 }
 
 
-.conteneur-esem .noeud.document {
-	display: block;
+/* Noeuds Multi-ligne */
+.conteneur-esem .noeud.multi-ligne {
+	display:block;
+	margin-bottom: 0.3em;
 }
 
+.conteneur-esem .noeud.multi-ligne:before {
+	display:block;
+	font-size: smaller;
+}
+
+/* Noeuds Mono-ligne */
+.conteneur-esem .noeud.mono-ligne {
+	display: block;
+	margin-bottom: 0.3em;
+}
+
+.conteneur-esem .noeud.mono-ligne:before {
+	border-right: medium solid white;
+	padding: 0 0.3em;
+	display: inline-block;
+}
+
+/* Noeuds En-ligne */
+.conteneur-esem .noeud.en-ligne {
+	display: inline;
+}
+
+.conteneur-esem .noeud.en-ligne:before {
+	padding: 0 0.3em;
+	font-size: smaller;
+	display: inline-block;
+}
+
+/* Titre */
 .conteneur-esem .noeud.titre {
 	font-weight: bold;
 	font-size: large;
 	border: thick solid #ddd;
-	display: block;
 }
 
 .conteneur-esem .noeud.titre:before {
 	content: "Titre";
 	font-weight: bold;
-	padding: 0 0.3em;
 	background-color: #ddd;
 }
 
+/* Paragraphe */
 .conteneur-esem .noeud.paragraphe {
 	border: thick solid #ddd;
-	display: block;
 }
 
 .conteneur-esem .noeud.paragraphe:before {
 	content: "Paragraphe";
-	font-size: smaller;
 	background-color: #ddd;
-	display:block;
 }
 
+/* Important */
 .conteneur-esem .noeud.important {
 	background-color: mistyrose;
 }
 
 .conteneur-esem .noeud.important:before {
 	content: "Important";
-	padding: 0 0.3em;
-	font-size: smaller;
 	background-color: pink;
-	display: inline;
+}
+
+/* Lien */
+.conteneur-esem .noeud.lien {
+	background-color: #ddf;
+}
+
+.conteneur-esem .noeud.lien:before {
+	content: "Lien";
+	background-color: #aaf;
 }
