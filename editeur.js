@@ -1,3 +1,11 @@
+$(function() {
+	$(".éditeur-semantique").each(function(i,e) {
+		éditeurSémantique(e);
+	});
+});
+
+/* ===== Types de noeud ===== */
+
 var MULTI_LIGNE = 0;
 var MONO_LIGNE = 1;
 var EN_LIGNE = 2;
@@ -11,7 +19,45 @@ $.fn.extend({
 	}
 });
 
-var typesNoeud = {
+function squeletteAperçuNoeud(noeud) {
+	var ct = {};
+	ct[MULTI_LIGNE] = { tag: 'div',  tagc: 'div',  cat: 'multi-ligne' };
+	ct[MONO_LIGNE]  = { tag: 'div',  tagc: 'span', cat: 'mono-ligne' };
+	ct[EN_LIGNE]    = { tag: 'span', tagc: 'span', cat: 'en-ligne' };
+	ct = ct[typesNoeud[noeud.type].catégorie];
+	
+	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type).addClass(ct.cat);
+	var étiquette = $('<span class="étiquette"/>').appendTo(html);
+	var contenu = $('<' + ct.tagc + ' class="contenu"/>').appendTo(html);
+	return html;
+}
+
+var typeNoeudDéfaut = {
+	catégorie: EN_LIGNE,
+	enfants: ['texte'],
+	vues: {
+		aperçu: function() {
+			return squeletteAperçuNoeud(this)
+				.children(".contenu").appendVuesEnfants(this, 'aperçu').end();
+		},
+		edition: function() {
+			return $('<div class="info">Cliquez sur du texte pour le modifier.</div>');
+		}
+	},
+	vue: function (typeVue) {
+		return typesNoeud[this.type].vues[typeVue].call(this, typeVue);
+	},
+	propriétés: {}
+}
+
+function TypesNoeud(typesNoeud) {
+	for (var i in typesNoeud) {
+		this[i] = $.extend({}, typeNoeudDéfaut, typesNoeud[i]);
+		this[i].vues = $.extend({}, typeNoeudDéfaut.vues, typesNoeud[i].vues);
+	}
+}
+
+var typesNoeud = new TypesNoeud({
 	document: {
 		catégorie: MULTI_LIGNE,
 		enfants: ['titre', 'paragraphe'],
@@ -66,57 +112,9 @@ var typesNoeud = {
 			},
 		}
 	}
-};
-
-function squeletteAperçuNoeud(noeud) {
-	var ct = {};
-	ct[MULTI_LIGNE] = { tag: 'div',  tagc: 'div',  cat: 'multi-ligne' };
-	ct[MONO_LIGNE]  = { tag: 'div',  tagc: 'span', cat: 'mono-ligne' };
-	ct[EN_LIGNE]    = { tag: 'span', tagc: 'span', cat: 'en-ligne' };
-	ct = ct[typesNoeud[noeud.type].catégorie];
-	
-	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type).addClass(ct.cat);
-	var étiquette = $('<span class="étiquette"/>').appendTo(html);
-	var contenu = $('<' + ct.tagc + ' class="contenu"/>').appendTo(html);
-	return html;
-}
-
-var typeNoeudDéfaut = {
-	catégorie: EN_LIGNE,
-	enfants: ['texte'],
-	vues: {
-		aperçu: function() {
-			return squeletteAperçuNoeud(this)
-				.children(".contenu").appendVuesEnfants(this, 'aperçu').end();
-		},
-		edition: function() {
-			return $('<div class="info">Cliquez sur du texte pour le modifier.</div>');
-		}
-	},
-	vue: function (typeVue) {
-		return typesNoeud[this.type].vues[typeVue].call(this, typeVue);
-	},
-	propriétés: {}
-}
-
-function nettoyerTypesNoeud(typesNoeud) {
-	var tn = {};
-	
-	for (var i in typesNoeud) {
-		tn[i] = $.extend({}, typeNoeudDéfaut, typesNoeud[i]);
-		tn[i].vues = $.extend({}, typeNoeudDéfaut.vues, typesNoeud[i].vues);
-	}
-
-	return tn;
-}
-
-typesNoeud = nettoyerTypesNoeud(typesNoeud);
-
-$(function() {
-	$(".éditeur-semantique").each(function(i,e) {
-		éditeurSémantique(e);
-	});
 });
+
+/* ===== Textarea => éditeur sémantique ===== */
 
 function éditeurSémantique(textareaOrigine) {
 	// XML -> modèle
