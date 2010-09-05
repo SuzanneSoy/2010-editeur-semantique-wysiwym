@@ -7,6 +7,7 @@ $.fn.extend({
 		for (var i = 0; i < modèle.contenu.length; i++) {
 			this.append(modèle.contenu[i].créerVue(typeVue));
 		}
+		return this;
 	}
 });
 
@@ -16,9 +17,7 @@ var typesNoeud = {
 		enfants: ['titre', 'paragraphe'],
 		// surcharge de la _fonction_ "vue" (pas le tableau "vues").
 		vue: function() {
-			var ret = $('<div class="conteneur-esem"/>');
-			ret.appendVuesEnfants(this, 'aperçu');
-			return ret;
+			return $('<div class="conteneur-esem"/>').appendVuesEnfants(this, 'aperçu');
 		}
 	},
 	titre: {
@@ -38,9 +37,9 @@ var typesNoeud = {
 		enfants: ['texte'],
 		vues: {
 			aperçu: function() {
-				var ret = $('<span class="noeud lien en-ligne"/>');
-				$('<span class="cible"/>').text(this.propriétés.cible).appendTo(ret);
-				$('<span class="texte"/>').text(this.texte).appendTo(ret);
+				var ret = squeletteAperçuNoeud(this);
+				$('<span class="cible"/>').text(this.propriétés.cible).appendTo(ret.children(".contenu"));
+				$('<span class="texte"/>').text(this.propriétés.texte).appendTo(ret.children(".contenu"));
 				return ret;
 			},
 			édition: function() {
@@ -48,8 +47,9 @@ var typesNoeud = {
 			},
 		},
 		propriétés: {
-			'interne': false,
-			'cible': 'http://example.com/'
+			interne: false,
+			cible: 'http://example.com/',
+			texte: 'texte du lien'
 		}
 	},
 	texte: {
@@ -68,22 +68,26 @@ var typesNoeud = {
 	}
 };
 
+function squeletteAperçuNoeud(noeud) {
+	var ct = {};
+	ct[MULTI_LIGNE] = { tag: 'div',  tagc: 'div',  cat: 'multi-ligne' };
+	ct[MONO_LIGNE]  = { tag: 'div',  tagc: 'span', cat: 'mono-ligne' };
+	ct[EN_LIGNE]    = { tag: 'span', tagc: 'span', cat: 'en-ligne' };
+	ct = ct[typesNoeud[noeud.type].catégorie];
+	
+	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type).addClass(ct.cat);
+	var étiquette = $('<span class="étiquette"/>').appendTo(html);
+	var contenu = $('<' + ct.tagc + ' class="contenu"/>').appendTo(html);
+	return html;
+}
+
 var typeNoeudDéfaut = {
 	catégorie: EN_LIGNE,
 	enfants: ['texte'],
 	vues: {
 		aperçu: function() {
-			var ct = {};
-			ct[MULTI_LIGNE] = { tag: 'div', cat: 'multi-ligne' };
-			ct[MONO_LIGNE] = { tag: 'div', cat: 'mono-ligne' };
-			ct[EN_LIGNE] = { tag: 'span', cat: 'en-ligne' };
-			ct = ct[typesNoeud[this.type].catégorie];
-			
-			var html = $('<' + ct.tag + ' class="noeud"/>');
-			html.addClass(this.type);
-			html.addClass(ct.cat);
-			html.appendVuesEnfants(this, 'aperçu');
-			return html;
+			return squeletteAperçuNoeud(this)
+				.children(".contenu").appendVuesEnfants(this, 'aperçu').end();
 		},
 		edition: function() {
 			return $('<div class="info">Cliquez sur du texte pour le modifier.</div>');
@@ -210,18 +214,7 @@ function xmlVersModèle(xml) {
 
 			// Vue
 			créerVue: function(typeVue) {
-				surcharge = typesNoeud[tag].vue;
-				if (typeof surcharge == "function") {
-					return surcharge.call(this, typeVue);
-				} else if (typeof surcharge == "object" && typeof surcharge[typeVue] == "function") {
-					return surcharge[typeVue].call(this);
-				} else {
-					var ret = $('<div/>').text("" + typeVue);
-					for (var i = 0; i < this.contenu.length; i++) {
-						ret.append(this.contenu[i].créerVue('aperçu'));
-					}
-					return ret;
-				}
+				return typesNoeud[tag].vue.call(this, typeVue);;
 			}
 		};
 		

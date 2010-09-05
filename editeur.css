@@ -1,3 +1,17 @@
+/* Hacks :
+ * 
+ * Si on fait <span class="important">un truc</span> avec
+ *     .important        { background-color: pink; }
+ *     .important:before { background-color: red;  font-size: x-small; content: "Important"; }
+ * alors le "Important" est sur fond rouge, mais la ligne est moins haute, donc on voit du rose an haut et en bas.
+ * Par contre, en faisant <span class="important"><span class="étiquette"></span>un truc</span> et avec
+ *     .important                  { background-color: pink; }
+ *     .important.étiquette        { background-color: red;}
+ *     .important.étiquette:before { font-size: x-small; content: "Important"; }
+ * on a l'effet désiré (le .étiquette est en rouge, et le "important" est sur une ligne moins haute _à l'intérieur_
+ * du .étiquette, donc on ne remarque pas qu'elle est moins haute.
+ */
+
 .conteneur-esem {
 	border: thin solid black;
 }
@@ -25,9 +39,10 @@
 	display:block;
 	margin-bottom: 0.3em;
 }
-
-.conteneur-esem .noeud.multi-ligne:before {
+.conteneur-esem .noeud.multi-ligne .étiquette {
 	display:block;
+}
+.conteneur-esem .noeud.multi-ligne .étiquette:before {
 	font-size: smaller;
 }
 
@@ -36,22 +51,24 @@
 	display: block;
 	margin-bottom: 0.3em;
 }
-
-.conteneur-esem .noeud.mono-ligne:before {
+.conteneur-esem .noeud.mono-ligne .étiquette {
 	border-right: medium solid white;
 	padding: 0 0.3em;
 	display: inline-block;
+}
+.conteneur-esem .noeud.mono-ligne .étiquette:before {
 }
 
 /* Noeuds En-ligne */
 .conteneur-esem .noeud.en-ligne {
 	display: inline;
 }
-
-.conteneur-esem .noeud.en-ligne:before {
+.conteneur-esem .noeud.en-ligne .étiquette {
 	padding: 0 0.3em;
-	font-size: smaller;
 	display: inline-block;
+}
+.conteneur-esem .noeud.en-ligne .étiquette:before {
+	font-size: smaller;
 }
 
 /* Titre */
@@ -60,39 +77,59 @@
 	font-size: large;
 	border: thick solid #ddd;
 }
-
-.conteneur-esem .noeud.titre:before {
+.conteneur-esem .noeud.titre .étiquette {
+	background-color: #ddd;
+}
+.conteneur-esem .noeud.titre .étiquette:before {
 	content: "Titre";
 	font-weight: bold;
-	background-color: #ddd;
 }
 
 /* Paragraphe */
 .conteneur-esem .noeud.paragraphe {
 	border: thick solid #ddd;
 }
-
-.conteneur-esem .noeud.paragraphe:before {
-	content: "Paragraphe";
+.conteneur-esem .noeud.paragraphe .étiquette {
 	background-color: #ddd;
+}
+.conteneur-esem .noeud.paragraphe .étiquette:before {
+	content: "Paragraphe";
 }
 
 /* Important */
 .conteneur-esem .noeud.important {
 	background-color: mistyrose;
 }
-
-.conteneur-esem .noeud.important:before {
-	content: "Important";
+.conteneur-esem .noeud.important .étiquette {
 	background-color: pink;
+	border: thin solid pink;
+}
+.conteneur-esem .noeud.important .étiquette:before {
+	content: "Important";
+}
+.conteneur-esem .noeud.important .contenu {
+	border: thin solid pink;
 }
 
 /* Lien */
 .conteneur-esem .noeud.lien {
 	background-color: #ddf;
 }
-
-.conteneur-esem .noeud.lien:before {
-	content: "Lien";
+.conteneur-esem .noeud.lien .étiquette {
 	background-color: #aaf;
+	border: thin solid #aaf;
+}
+.conteneur-esem .noeud.lien .étiquette:before {
+	content: "Lien";
+}
+.conteneur-esem .noeud.lien .cible {
+	border: thin solid #aaf;
+	padding: 0 0.2em;
+	color: blue;
+	background-color: #eef;
+}
+.conteneur-esem .noeud.lien .texte {
+	border: thin solid #aaf;
+	border-left: none;
+	padding: 0 0.2em;
 }
