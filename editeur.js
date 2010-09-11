@@ -24,9 +24,9 @@ function squeletteAperçuNoeud(noeud) {
 	ct[MULTI_LIGNE] = { tag: 'div',  tagc: 'div',  cat: 'multi-ligne' };
 	ct[MONO_LIGNE]  = { tag: 'div',  tagc: 'span', cat: 'mono-ligne' };
 	ct[EN_LIGNE]    = { tag: 'span', tagc: 'span', cat: 'en-ligne' };
-	ct = ct[typesNoeud[noeud.type()].catégorie];
+	ct = ct[noeud.type().catégorie];
 	
-	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type()).addClass(ct.cat);
+	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type().nom).addClass(ct.cat);
 	var étiquette = $('<span class="étiquette"/>').appendTo(html);
 	var contenu = $('<' + ct.tagc + ' class="contenu"/>').appendTo(html);
 	
@@ -48,15 +48,17 @@ var typeNoeudDéfaut = {
 		}
 	},
 	vue: function (typeVue) {
-		return typesNoeud[this.type()].vues[typeVue].call(this, typeVue);
+		return typesNoeud[this.type().nom].vues[typeVue].call(this, typeVue);
 	},
 	propriétés: {}
 }
 
+// Nettoie typesNoeud
 function TypesNoeud(typesNoeud) {
 	for (var i in typesNoeud) {
 		this[i] = $.extend({}, typeNoeudDéfaut, typesNoeud[i]);
 		this[i].vues = $.extend({}, typeNoeudDéfaut.vues, typesNoeud[i].vues);
+		this[i].nom = i;
 	}
 }
 
@@ -209,7 +211,7 @@ var créerDocument = function() {
 					
 					// Type
 					type: function() {
-						return privé.type;
+						return typesNoeud[privé.type];
 					},
 					setType: function(nouveauType) {
 						// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
@@ -235,7 +237,8 @@ var créerDocument = function() {
 			})();
 			
 			// Modèle : Fonctions secondaires :
-			return $.extend(obj, {	
+			return $.extend(obj, {
+				// Manipulation
 				supprimer: function() {
 					return this.parent().supprimerEnfant(this.positionDansParent());
 				},
@@ -273,11 +276,11 @@ var créerDocument = function() {
 					}
 					this.remplacer.apply(this, c);
 				},
-
+				
 				// Vue
 				créerVue: function(typeVue) {
-					return typesNoeud[type].vue.call(this, typeVue);
-				}
+					return this.type().vue.call(this, typeVue);
+				},
 			});
 		}
 	};
