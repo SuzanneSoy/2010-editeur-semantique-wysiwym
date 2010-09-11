@@ -139,154 +139,169 @@ function éditeurSémantique(textareaOrigine) {
 	v = vue;
 }
 
-var créerDocument = function() {
-	var document = {
-		noeudActif: null,
-		pressePapier: null,
-		setNoeudActif : function(noeud) {
-			// TODO : vue.setActif(bool);
-			document.noeudActif = null;
-		},
-		créerNoeud: function(type) {
-			var obj = (function(){ // closure
-				var privé = {
-					type: type,
-					contenu: [],
-					propriétés: $.extend(true, {}, typesNoeud[type].propriétés),
-					
-					// Navigation
-					parent: null,
-					document: document,
-				};
-				return {
-					// Modèle : fonctions principales.
-
-					// Document
-					document: function() {
-						return privé.document;
-					},
-
-					// Parent
-					parent: function() {
-						return privé.parent;
-					},
-					setParent: function(p) {
-						// vérification de la cohérence du modèle
-						if (p !== null && typeof p != "undefined" && p.indexOf(this) >= 0) {
-							// Nouveau parent
-							privé.parent = p;
-						} else if (this.positionDansParent() >= 0) {
-							// Parent existant
-							// Pas de modification
-						} else {
-							// Pas de parent
-							privé.parent = null;
-						}
-					},
-					positionDansParent: function() {
-						return (privé.parent === null) ? -1 : privé.parent.indexOf(this);
-					},
-					
-					// Enfants
-					nbEnfants: function() {
-						return privé.contenu.length;
-					},
-					enfant: function(i) {
-						return privé.contenu[i];
-					},
-					indexOf: function(e) {
-						return privé.contenu.indexOf(e);
-					},
-					insérer: function(noeud, position) {
-						privé.contenu.splice(position, 0, noeud);
-						noeud.setParent(this); // Doit être appellé après l'insertion (setParent vérifie qu'on est bien le parent).
-						// TODO : modifier la vue
-					},
-					supprimerEnfant: function(position) {
-						var e = privé.contenu.splice(position, 1);
-						e.setParent(null);
-						// TODO : modifier la vue
-						return e;
-					},
-					
-					// Type
-					type: function() {
-						return typesNoeud[privé.type];
-					},
-					setType: function(nouveauType) {
-						// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
-						// TODO : vérifier si le parent peut bien contenir ce type.
-						// TODO : vérifier si ce type peut bien contenir les enfants actuels.
-						privé.type = nouveauType;
-						// TODO : modifier la vue
-					},
-					
-					// Propriétés
-					propriété: function(nom) {
-						return privé.propriétés[nom];
-					},
-					listePropriétés: function() {
-						return $.map(privé.propriétés, function(i,e) { return i; });
-					},
-					setPropriété: function(propriété, valeur) {
-						if (propriété in privé.propriétés)
-							privé.propriétés[propriété] = valeur;
-						// TODO : modifier la vue
-					}
-				};
-			})();
-			
-			// Modèle : Fonctions secondaires :
-			return $.extend(obj, {
-				// Manipulation
-				supprimer: function() {
-					return this.parent().supprimerEnfant(this.positionDansParent());
-				},
-				insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur).
-					this.parent.insérer(noeud, this.positionDansParent());
-				},
-				insérerAprès: function(noeud) { // insère noeud après this (à l'extérieur).
-					this.parent.insérer(noeud, this.positionDansParent() + 1);
-				},
-				insérerDébut: function(noeud) { // insère noeud au début de this (à l'intérieur).
-					this.insérer(noeud, 0);
-				},
-				insérerFin: function(noeud) { // insère noeud à la fin de this (à l'intérieur).
-					this.insérer(noeud, this.nbEnfants());
-				},
-				emballer: function(noeud) { // insère noeud à la place de this, et met this dedans.
-					var pos = this.positionDansParent();
-					var parent = this.parent();
-					parent.supprimerEnfant(pos);
-					parent.insérer(noeud, pos);
-					noeud.insérer(this, 0); // TODO ? noeud.setContenu(this);
-				},
-				remplacer: function () {
-					var pos = this.positionDansParent();
-					var parent = this.parent();
-					parent.supprimerEnfant(pos);
-					for (var i = 0; i < arguments.length; i++) {
-						parent.insérer(arguments[i], pos++);
-					}
-				},
-				déballer: function() { // Contraire de emballer : supprime this, mais garde le contenu.
-					var c = [];
-					for (var i = 0; i < this.nbEnfants(); i++) {
-						c[i] = this.supprimerEnfant(i); // TODO : l'insertion devrait elle-même supprimer le noeud s'il est déjà inséré quelque part.
-					}
-					this.remplacer.apply(this, c);
-				},
-				
-				// Vue
-				créerVue: function(typeVue) {
-					return this.type().vue.call(this, typeVue);
-				},
-			});
+var créerDocument = function(schémasTypesNoeud) {
+	function clôture_référence_document(privé_document) {
+		return {
+			document: function() {
+				return privé_document;
+			}
+		};
+	};
+	function clôture_parent() {
+		var privé_parent = null;
+		return {
+			parent: function() {
+				return privé_parent;
+			},
+			setParent: function(p) {
+				// vérification de la cohérence du modèle
+				if (p !== null && typeof p != "undefined" && p.indexOf(this) >= 0) {
+					// Nouveau parent
+					privé_parent = p;
+				} else if (this.positionDansParent() >= 0) {
+					// Parent existant
+					// Pas de modification
+				} else {
+					// Pas de parent
+					privé_parent = null;
+				}
+			},
+			positionDansParent: function() {
+				return (privé_parent === null) ? -1 : privé_parent.indexOf(this);
+			}
+		};
+	};
+	function clôture_enfants() {
+		var privé_enfants = [];
+		return {
+			nbEnfants: function() {
+				return privé_enfants.length;
+			},
+			enfant: function(i) {
+				return privé_enfants[i];
+			},
+			indexOf: function(e) {
+				return privé_enfants.indexOf(e);
+			},
+			insérer: function(noeud, position) {
+				privé_enfants.splice(position, 0, noeud);
+				noeud.setParent(this); // Doit être appellé après l'insertion (setParent vérifie qu'on est bien le parent).
+				// TODO : modifier la vue
+			},
+			supprimerEnfant: function(position) {
+				var e = privé_enfants.splice(position, 1)[0];
+				e.setParent(null);
+				// TODO : modifier la vue
+				return e;
+			}
+		};
+	};
+	function clôture_type(privé_type) {
+		return {
+			type: function() {
+				return this.document().schémaTypeNoeud(privé_type);
+			},
+			setType: function(nouveauType) {
+				// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
+				// TODO : vérifier si le parent peut bien contenir ce type.
+				// TODO : vérifier si ce type peut bien contenir les enfants actuels.
+				privé_type = nouveauType;
+				// TODO : modifier la vue
+			}
+		};
+	};
+	function clôture_propriétés(privé_propriétés) {
+		return {
+			propriété: function(nom) {
+				return privé_propriétés[nom];
+			},
+			listePropriétés: function() {
+				return $.map(privé_propriétés, function(i,e) { return i; });
+			},
+			setPropriété: function(propriété, valeur) {
+				if (propriété in privé_propriétés)
+					privé_propriétés[propriété] = valeur;
+				// TODO : modifier la vue
+			}
 		}
 	};
-	$.extend(document, document.créerNoeud("document"));
-/*	document.document = document; // 42 ! */
-	return document;
+
+	var supplément_manipulation = {
+		supprimer: function() {
+			return this.parent().supprimerEnfant(this.positionDansParent());
+		},
+		insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur).
+			this.parent.insérer(noeud, this.positionDansParent());
+		},
+		insérerAprès: function(noeud) { // insère noeud après this (à l'extérieur).
+			this.parent.insérer(noeud, this.positionDansParent() + 1);
+		},
+		insérerDébut: function(noeud) { // insère noeud au début de this (à l'intérieur).
+			this.insérer(noeud, 0);
+		},
+		insérerFin: function(noeud) { // insère noeud à la fin de this (à l'intérieur).
+			this.insérer(noeud, this.nbEnfants());
+		},
+		emballer: function(noeud) { // insère noeud à la place de this, et met this dedans.
+			var pos = this.positionDansParent();
+			var parent = this.parent();
+			parent.supprimerEnfant(pos);
+			parent.insérer(noeud, pos);
+			noeud.insérer(this, 0); // TODO ? noeud.setContenu(this);
+		},
+		remplacer: function () {
+			var pos = this.positionDansParent();
+			var parent = this.parent();
+			parent.supprimerEnfant(pos);
+			for (var i = 0; i < arguments.length; i++) {
+				parent.insérer(arguments[i], pos++);
+			}
+		},
+		déballer: function() { // Contraire de emballer : supprime this, mais garde le contenu.
+			var c = [];
+			for (var i = 0; i < this.nbEnfants(); i++) {
+				c[i] = this.supprimerEnfant(i); // TODO : l'insertion devrait elle-même supprimer le noeud s'il est déjà inséré quelque part.
+			}
+			this.remplacer.apply(this, c);
+		}
+	};
+	
+	var supplément_vue = {
+		créerVue: function(typeVue) {
+			return this.type().vue.call(this, typeVue);
+		}
+	}
+		
+	function clôture_document(privé_typesNoeud) {
+		var privé_noeudActif = null;
+		var privé_pressePapier = null;
+		
+		var privé_document = {
+			setNoeudActif: function(noeud) {
+				// TODO : vue.setActif(bool);
+				privé_noeudActif = noeud;
+			},
+			schémaTypeNoeud: function(type) {
+				return privé_typesNoeud[type];
+			},
+			créerNoeud: function(type) {
+				return $.extend(
+					{},
+					clôture_référence_document(privé_document),
+					clôture_parent(),
+					clôture_enfants(),
+					clôture_type(type),
+					clôture_propriétés($.extend(true, {}, privé_typesNoeud[type].propriétés)),
+					supplément_manipulation,
+					supplément_vue
+				);
+			}
+		};
+
+		return $.extend(privé_document, privé_document.créerNoeud("document"));
+	};
+	
+	return document = clôture_document(typesNoeud);
 }
 
 function xmlVersModèle(xml) {
@@ -294,7 +309,7 @@ function xmlVersModèle(xml) {
 		var tag = xml.tagName.toLowerCase();
 		
 		var ret = (parent === null)
-			? créerDocument()
+			? créerDocument(typesNoeud)
 			: parent.document().créerNoeud(tag);
 		
 		for (var i in ret.listePropriétés()) {
