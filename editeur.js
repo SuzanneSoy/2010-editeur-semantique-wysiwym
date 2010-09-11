@@ -12,8 +12,8 @@ var EN_LIGNE = 2;
 
 $.fn.extend({
 	appendVuesEnfants: function (modèle, typeVue) {
-		for (var i = 0; i < modèle.contenu.length; i++) {
-			this.append(modèle.contenu[i].créerVue(typeVue));
+		for (var i = 0; i < modèle.nbEnfants(); i++) {
+			this.append(modèle.enfant(i).créerVue(typeVue));
 		}
 		return this;
 	}
@@ -24,9 +24,9 @@ function squeletteAperçuNoeud(noeud) {
 	ct[MULTI_LIGNE] = { tag: 'div',  tagc: 'div',  cat: 'multi-ligne' };
 	ct[MONO_LIGNE]  = { tag: 'div',  tagc: 'span', cat: 'mono-ligne' };
 	ct[EN_LIGNE]    = { tag: 'span', tagc: 'span', cat: 'en-ligne' };
-	ct = ct[typesNoeud[noeud.type].catégorie];
+	ct = ct[typesNoeud[noeud.type()].catégorie];
 	
-	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type).addClass(ct.cat);
+	var html = $('<' + ct.tag + ' class="noeud"/>').addClass(noeud.type()).addClass(ct.cat);
 	var étiquette = $('<span class="étiquette"/>').appendTo(html);
 	var contenu = $('<' + ct.tagc + ' class="contenu"/>').appendTo(html);
 	
@@ -48,7 +48,7 @@ var typeNoeudDéfaut = {
 		}
 	},
 	vue: function (typeVue) {
-		return typesNoeud[this.type].vues[typeVue].call(this, typeVue);
+		return typesNoeud[this.type()].vues[typeVue].call(this, typeVue);
 	},
 	propriétés: {}
 }
@@ -87,8 +87,8 @@ var typesNoeud = new TypesNoeud({
 		vues: {
 			aperçu: function() {
 				var ret = squeletteAperçuNoeud(this);
-				$('<span class="cible"/>').text(this.propriétés.cible).appendTo(ret.children(".contenu"));
-				$('<span class="texte"/>').text(this.propriétés.texte).appendTo(ret.children(".contenu"));
+				$('<span class="cible"/>').text(this.propriété("cible")).appendTo(ret.children(".contenu"));
+				$('<span class="texte"/>').text(this.propriété("texte")).appendTo(ret.children(".contenu"));
 				return ret;
 			},
 			édition: function() {
@@ -105,13 +105,13 @@ var typesNoeud = new TypesNoeud({
 		catégorie: EN_LIGNE,
 		enfants: [],
 		vues: {
-			aperçu: function(typeVue) {
+			aperçu: function() {
 				return $('<span class="noeud texte en-ligne"/>')
-					.text(this.propriétés.texte);
+					.text(this.propriété("texte"));
 				//  .bind_text(this.texte);
 			},
-			édition: function(n) {
-				return $("<textarea/>").bind_val(n.texte);
+			édition: function() {
+				return $("<textarea/>").bind_val(this.propriété("texte")); // TODO
 			},
 		},
 		propriétés: {
@@ -146,43 +146,98 @@ var créerDocument = function() {
 			document.noeudActif = null;
 		},
 		créerNoeud: function(type) {
-			return {
-				type: type,
-				contenu: [],
-				propriétés: $.extend(true, {}, typesNoeud[type].propriétés),
-				
-				// Navigation
-				parent: null,
-				document: document,
-				
-				// Modèle : fonctions principales.
-				positionDansParent: function() {
-					return this.parent().contenu.indexOf(this); // Mouais...
-				},
-				insérer: function(noeud, position) {
-					noeud.parent = this;
-					this.contenu.splice(position, 0, noeud);
-					// TODO : modifier la vue
-				},
-				supprimerEnfant: function(position) {
-					return this.contenu.splice(position, 1);
-				},
-				modifierType: function(nouveauType) {
-					// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
-					// TODO : vérifier si le parent peut bien contenir ce type
-					this.type = nouveauType;
-					// TODO : modifier la vue
-				},
-				modifierPropriété: function(propriété, valeur) {
-					// TODO : vérifier si ce type peut avoir cette propriété
-					this.propriétés[propriété] = valeur;
-					// TODO : modifier la vue
-				},
-				
-				// Modèle : Fonctions secondaires :
-				
+			var obj = (function(){ // closure
+				var privé = {
+					type: type,
+					contenu: [],
+					propriétés: $.extend(true, {}, typesNoeud[type].propriétés),
+					
+					// Navigation
+					parent: null,
+					document: document,
+				};
+				return {
+					// Modèle : fonctions principales.
+
+					// Document
+					document: function() {
+						return privé.document;
+					},
+
+					// Parent
+					parent: function() {
+						return privé.parent;
+					},
+					setParent: function(p) {
+						// vérification de la cohérence du modèle
+						if (p !== null && typeof p != "undefined" && p.indexOf(this) >= 0) {
+							// Nouveau parent
+							privé.parent = p;
+						} else if (this.positionDansParent() >= 0) {
+							// Parent existant
+							// Pas de modification
+						} else {
+							// Pas de parent
+							privé.parent = null;
+						}
+					},
+					positionDansParent: function() {
+						return (privé.parent === null) ? -1 : privé.parent.indexOf(this);
+					},
+					
+					// Enfants
+					nbEnfants: function() {
+						return privé.contenu.length;
+					},
+					enfant: function(i) {
+						return privé.contenu[i];
+					},
+					indexOf: function(e) {
+						return privé.contenu.indexOf(e);
+					},
+					insérer: function(noeud, position) {
+						privé.contenu.splice(position, 0, noeud);
+						noeud.setParent(this); // Doit être appellé après l'insertion (setParent vérifie qu'on est bien le parent).
+						// TODO : modifier la vue
+					},
+					supprimerEnfant: function(position) {
+						var e = privé.contenu.splice(position, 1);
+						e.setParent(null);
+						// TODO : modifier la vue
+						return e;
+					},
+					
+					// Type
+					type: function() {
+						return privé.type;
+					},
+					setType: function(nouveauType) {
+						// TODO : lien -> (texte ou important ou ...) doit préserver le texte du lien.
+						// TODO : vérifier si le parent peut bien contenir ce type.
+						// TODO : vérifier si ce type peut bien contenir les enfants actuels.
+						privé.type = nouveauType;
+						// TODO : modifier la vue
+					},
+					
+					// Propriétés
+					propriété: function(nom) {
+						return privé.propriétés[nom];
+					},
+					listePropriétés: function() {
+						return $.map(privé.propriétés, function(i,e) { return i; });
+					},
+					setPropriété: function(propriété, valeur) {
+						if (propriété in privé.propriétés)
+							privé.propriétés[propriété] = valeur;
+						// TODO : modifier la vue
+					}
+				};
+			})();
+			
+			// Modèle : Fonctions secondaires :
+			return $.extend(obj, {	
 				supprimer: function() {
-					return this.parent.supprimerEnfant(this.positionDansParent());
+					return this.parent().supprimerEnfant(this.positionDansParent());
 				},
 				insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur).
 					this.parent.insérer(noeud, this.positionDansParent());
@@ -194,18 +249,18 @@ var créerDocument = function() {
 					this.insérer(noeud, 0);
 				},
 				insérerFin: function(noeud) { // insère noeud à la fin de this (à l'intérieur).
-					this.insérer(noeud, this.contenu.length);
+					this.insérer(noeud, this.nbEnfants());
 				},
 				emballer: function(noeud) { // insère noeud à la place de this, et met this dedans.
 					var pos = this.positionDansParent();
-					var parent = this.parent;
-					var n = parent.supprimerEnfant(pos);
+					var parent = this.parent();
+					parent.supprimerEnfant(pos);
 					parent.insérer(noeud, pos);
-					noeud.insérer(n, 0); // TODO ? noeud.setContenu(this);
+					noeud.insérer(this, 0); // TODO ? noeud.setContenu(this);
 				},
 				remplacer: function () {
 					var pos = this.positionDansParent();
-					var parent = this.parent;
+					var parent = this.parent();
 					parent.supprimerEnfant(pos);
 					for (var i = 0; i < arguments.length; i++) {
 						parent.insérer(arguments[i], pos++);
@@ -213,7 +268,7 @@ var créerDocument = function() {
 				},
 				déballer: function() { // Contraire de emballer : supprime this, mais garde le contenu.
 					var c = [];
-					for (var i = 0; i < this.contenu.length; i++) {
+					for (var i = 0; i < this.nbEnfants(); i++) {
 						c[i] = this.supprimerEnfant(i); // TODO : l'insertion devrait elle-même supprimer le noeud s'il est déjà inséré quelque part.
 					}
 					this.remplacer.apply(this, c);
@@ -221,30 +276,33 @@ var créerDocument = function() {
 
 				// Vue
 				créerVue: function(typeVue) {
-					return typesNoeud[type].vue.call(this, typeVue);;
+					return typesNoeud[type].vue.call(this, typeVue);
 				}
-			}
+			});
 		}
 	};
 	$.extend(document, document.créerNoeud("document"));
-	document.document = document; // 42 !
+/*	document.document = document; // 42 ! */
 	return document;
 }
 
 function xmlVersModèle(xml) {
 	function recursion(xml, parent) {
-		var tag = xml.tagName.toLowerCase(); // TODO : si tagName n'est pas toujours un "vrai" string, .toString() .
-		var ret = parent.document.créerNoeud(tag);
+		var tag = xml.tagName.toLowerCase();
 		
-		for (var i in ret.propriétés) {
+		var ret = (parent === null)
+			? créerDocument()
+			: parent.document().créerNoeud(tag);
+		
+		for (var i in ret.listePropriétés()) {
 			var propval = $(xml).attr(i);
 			if (typeof propval != "undefined") {
-				ret.modifierPropriété(i, propval);
+				ret.setPropriété(i, propval);
 			}
 		}
 		
 		if (tag == "texte") {
-			ret.modifierPropriété("texte", $(xml).text());
+			ret.setPropriété("texte", $(xml).text());
 		}
 		
 		$(xml).children().each(function (i,e) {
@@ -254,7 +312,7 @@ function xmlVersModèle(xml) {
 		return ret;
 	}
 
-	return recursion(xml, créerDocument());
+	return recursion(xml, null);
 }
 
 /* Modèle :
@@ -271,7 +329,7 @@ vue.setPropriété(propriété, valeur);
 
 */
 
-function valeur(v) { // TODO : voir si ça peut marcher aussi pour des éléments complets (pas que du texte).
+/*function valeur(v) { // TODO : voir si ça peut marcher aussi pour des éléments complets (pas que du texte).
 	var valeur = v;
 	var écouteurs = [];
 	var f = function(v) {
@@ -288,9 +346,9 @@ function valeur(v) { // TODO : voir si ça peut marcher aussi pour des élément
 	f.ajouterÉcouteur = function(rappel) {
 		écouteurs.push(rappel);
 	}
-	/* TODO : piquer le code de : http://github.com/jsmaniac/2010-ide-langage-grunt-flin607/blob/master/jside4/callbacks.js */
+	// TODO : piquer le code de : http://github.com/jsmaniac/2010-ide-langage-grunt-flin607/blob/master/jside4/callbacks.js
 	return f;
-}
+} */
 
 
 
