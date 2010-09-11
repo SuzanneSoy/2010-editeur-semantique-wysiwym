@@ -1,8 +1,16 @@
 $(function() {
 	$(".éditeur-semantique").each(function(i,e) {
-		éditeurSémantique(e);
+		éditeurSémantique(e, typesNoeud);
 	});
 });
+
+Object.keys = function(object) {
+	var keys = [];
+	for (k in object) {
+		keys.push(k);
+	}
+	return keys;
+}
 
 /* ===== Types de noeud ===== */
 
@@ -124,11 +132,11 @@ var typesNoeud = new TypesNoeud({
 
 /* ===== Textarea => éditeur sémantique ===== */
 
-function éditeurSémantique(textareaOrigine) {
+function éditeurSémantique(textareaOrigine, schémasTypesNoeud) {
 	// XML -> modèle
 	var textareaOrigine = $(textareaOrigine);
 	var xml = $("<document/>").append(textareaOrigine.val()); // Est-ce portable ?.
-	var modèle = xmlVersModèle(xml.get(0));
+	var modèle = xmlVersModèle(xml.get(0), schémasTypesNoeud);
 	
 	// Vue
 	var vue = modèle.créerVue(null);
@@ -210,13 +218,14 @@ var créerDocument = function(schémasTypesNoeud) {
 			}
 		};
 	};
-	function clôture_propriétés(privé_propriétés) {
+	function clôture_propriétés(propriétésDéfaut) {
+		var privé_propriétés = $.extend(true, {}, propriétésDéfaut);
 		return {
 			propriété: function(nom) {
 				return privé_propriétés[nom];
 			},
 			listePropriétés: function() {
-				return $.map(privé_propriétés, function(i,e) { return i; });
+				return Object.keys(privé_propriétés);
 			},
 			setPropriété: function(propriété, valeur) {
 				if (propriété in privé_propriétés)
@@ -272,7 +281,7 @@ var créerDocument = function(schémasTypesNoeud) {
 		}
 	}
 		
-	function clôture_document(privé_typesNoeud) {
+	function clôture_document(privé_schémasTypesNoeud) {
 		var privé_noeudActif = null;
 		var privé_pressePapier = null;
 		
@@ -282,7 +291,7 @@ var créerDocument = function(schémasTypesNoeud) {
 				privé_noeudActif = noeud;
 			},
 			schémaTypeNoeud: function(type) {
-				return privé_typesNoeud[type];
+				return privé_schémasTypesNoeud[type];
 			},
 			créerNoeud: function(type) {
 				return $.extend(
@@ -291,7 +300,7 @@ var créerDocument = function(schémasTypesNoeud) {
 					clôture_parent(),
 					clôture_enfants(),
 					clôture_type(type),
-					clôture_propriétés($.extend(true, {}, privé_typesNoeud[type].propriétés)),
+					clôture_propriétés(privé_schémasTypesNoeud[type].propriétés),
 					supplément_manipulation,
 					supplément_vue
 				);
@@ -301,36 +310,35 @@ var créerDocument = function(schémasTypesNoeud) {
 		return $.extend(privé_document, privé_document.créerNoeud("document"));
 	};
 	
-	return document = clôture_document(typesNoeud);
+	return document = clôture_document(schémasTypesNoeud);
 }
 
-function xmlVersModèle(xml) {
-	function recursion(xml, parent) {
-		var tag = xml.tagName.toLowerCase();
-		
-		var ret = (parent === null)
-			? créerDocument(typesNoeud)
-			: parent.document().créerNoeud(tag);
-		
-		for (var i in ret.listePropriétés()) {
-			var propval = $(xml).attr(i);
-			if (typeof propval != "undefined") {
-				ret.setPropriété(i, propval);
-			}
-		}
-		
-		if (tag == "texte") {
-			ret.setPropriété("texte", $(xml).text());
-		}
-		
-		$(xml).children().each(function (i,e) {
-			ret.insérerFin(recursion(e, ret));
-		});
-		
-		return ret;
+function xmlVersModèle(xml, schémasTypesNoeud, document) {
+	var tag = xml.tagName.toLowerCase();
+	
+	// Création du noeud
+	if (document) {
+		var noeud = document.créerNoeud(tag);
+	} else {
+		var document = créerDocument(typesNoeud);
+		var noeud = document;
 	}
-
-	return recursion(xml, null);
+	
+	// Remplissage des propriétés
+	$.each(noeud.listePropriétés(), function(i,prop) {
+		var propval = $(xml).attr(prop);
+		if (typeof propval != "undefined") {
+			noeud.setPropriété(prop, propval);
+		}
+	});
+	
+	// Remplissage des enfants
+	$(xml).children().each(function (i,e) {
+		var x = xmlVersModèle(e, schémasTypesNoeud, document);
+		noeud.insérerFin(x);
+	});
+	
+	return noeud;
 }
 
 /* Modèle :
