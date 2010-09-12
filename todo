@@ -16,4 +16,5 @@ Utiliser LESS au lieu de CSS : http://github.com/cloudhead/less.js/tree/master/d
 
 Court-terme :
 
-noeud.insérerEnfant(n,pos) doit vérifier que pos n'est pas > nbEnfants et pas < 0
+noeud.insérerEnfant(n,pos) doit vérifier que pos n'est pas > nbEnfants et pas < 0 . Idem pour supprimer.
+Libérer les ressources en arrêtant d'écouter la suppression des enfants quand on est supprimé.

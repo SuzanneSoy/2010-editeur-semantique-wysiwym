@@ -4,6 +4,14 @@ $(function() {
 	});
 });
 
+function inRange(x, min, max) {
+	if (typeof x != "number") {
+		return 0;
+	} else {
+		return Math.min(Math.max(min,x), max);
+	}
+}
+
 Object.keys = function(object) {
 	var keys = [];
 	for (var k in object) {
@@ -92,8 +100,11 @@ $.fn.extend({
 			} else if (position >= html.children().size()) {
 				v.appendTo(html);
 			} else {
-				v.insertAfter(html.children().eq(position));
+				v.insertBefore(html.children().eq(position));
 			}
+		});
+		modèle.supprimerEnfant.ajouterÉcouteur(function(position) {
+			html.children().eq(position).remove();
 		});
 		return this;
 	},
@@ -307,6 +318,7 @@ var créerDocument = function(schémasTypesNoeud) {
 			insérerEnfant: function(noeud, position) {
 				if (noeud.parent() !== null)
 					noeud.supprimer();
+				position = inRange(position, 0, privé_enfants.length);
 				privé_enfants.splice(position, 0, noeud);
 				// noeud.setParent() doit être appellé après l'insertion
 				// car setParent vérifie qu'on est bien le parent.
@@ -314,6 +326,7 @@ var créerDocument = function(schémasTypesNoeud) {
 				écoutableInsérer.déclencherÉcouteurs(noeud, position);
 			},
 			supprimerEnfant: function(position) {
+				position = inRange(position, 0, privé_enfants.length - 1);
 				var e = privé_enfants.splice(position, 1)[0];
 				e.setParent(null);
 				écoutableSupprimer.déclencherÉcouteurs(position);
