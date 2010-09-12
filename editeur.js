@@ -260,12 +260,16 @@ var créerDocument = function(schémasTypesNoeud) {
 			enfant: function(i) {
 				return privé_enfants[i];
 			},
-			indexOf: function(e) {
-				return privé_enfants.indexOf(e);
+			indexOf: function(noeud) {
+				return privé_enfants.indexOf(noeud);
 			},
-			insérer: function(noeud, position) {
+			insérerEnfant: function(noeud, position) {
+				if (noeud.parent() !== null)
+					noeud.supprimer();
 				privé_enfants.splice(position, 0, noeud);
-				noeud.setParent(this); // Doit être appellé après l'insertion (setParent vérifie qu'on est bien le parent).
+				// noeud.setParent() doit être appellé après l'insertion
+				// car setParent vérifie qu'on est bien le parent.
+				noeud.setParent(this);
 				// TODO : modifier la vue
 			},
 			supprimerEnfant: function(position) {
@@ -303,23 +307,6 @@ var créerDocument = function(schémasTypesNoeud) {
 			listePropriétés: function() {
 				return Object.keys(privé_propriétés);
 			}
-/*			setPropriété: function(propriété, valeur) {
-				var oldval = privé_propriétés[propriété];
-				if (propriété in privé_propriétés) {
-					privé_propriétés[propriété] = valeur;
-					$.each(privé_écouteurs[propriété], function(i,écouteur) {
-						écouteur(valeur, oldval);
-					});
-				}
-				// TODO : modifier la vue
-			},
-			ajouterÉcouteurPropriété: function(propriété, écouteur) {
-				privé_écouteurs[propriété].push(écouteur);
-			},
-			enleverÉcouteurPropriété: function(propriété, écouteur) {
-				var i = privé_écouteurs[propriété].écouteur;
-				privé_écouteurs[propriété].splice(i,1);
-			}*/
 		}
 	};
 
@@ -328,30 +315,30 @@ var créerDocument = function(schémasTypesNoeud) {
 			return this.parent().supprimerEnfant(this.positionDansParent());
 		},
 		insérerAvant: function(noeud) { // insère noeud avant this (à l'extérieur).
-			this.parent.insérer(noeud, this.positionDansParent());
+			this.parent.insérerEnfant(noeud, this.positionDansParent());
 		},
 		insérerAprès: function(noeud) { // insère noeud après this (à l'extérieur).
-			this.parent.insérer(noeud, this.positionDansParent() + 1);
+			this.parent.insérerEnfant(noeud, this.positionDansParent() + 1);
 		},
 		insérerDébut: function(noeud) { // insère noeud au début de this (à l'intérieur).
-			this.insérer(noeud, 0);
+			this.insérerEnfant(noeud, 0);
 		},
 		insérerFin: function(noeud) { // insère noeud à la fin de this (à l'intérieur).
-			this.insérer(noeud, this.nbEnfants());
+			this.insérerEnfant(noeud, this.nbEnfants());
 		},
 		emballer: function(noeud) { // insère noeud à la place de this, et met this dedans.
 			var pos = this.positionDansParent();
 			var parent = this.parent();
 			parent.supprimerEnfant(pos);
-			parent.insérer(noeud, pos);
-			noeud.insérer(this, 0); // TODO ? noeud.setContenu(this);
+			parent.insérerEnfant(noeud, pos);
+			noeud.insérerEnfant(this, 0);
 		},
 		remplacer: function () {
 			var pos = this.positionDansParent();
 			var parent = this.parent();
 			parent.supprimerEnfant(pos);
 			for (var i = 0; i < arguments.length; i++) {
-				parent.insérer(arguments[i], pos++);
+				parent.insérerEnfant(arguments[i], pos++);
 			}
 		},
 		déballer: function() { // Contraire de emballer : supprime this, mais garde le contenu.
