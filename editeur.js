@@ -400,8 +400,17 @@ var créerDocument = function(schémasTypesNoeud) {
 		créerVue: function(typeVue) {
 			return this.type().vue.call(this, typeVue);
 		}
-	}
+	};
 		
+	var supplément_toString = {
+		toString: function() {
+			info = "[" + this.nbEnfants() + "]";
+			var t = this.propriété("texte");
+			if (t) info += ' "' + t.get() + '"';
+			return this.type().nom + info;
+		}
+	};
+	
 	function clôture_document(privé_schémasTypesNoeud) {
 		var privé_pressePapier = null;
 		
@@ -419,7 +428,8 @@ var créerDocument = function(schémasTypesNoeud) {
 					clôture_type(type),
 					clôture_propriétés(privé_schémasTypesNoeud[type].propriétés),
 					supplément_manipulation,
-					supplément_vue
+					supplément_vue,
+					supplément_toString
 				);
 			}
 		};
