@@ -23,8 +23,10 @@ function valeur(v) {
 		}
 	};
 	f.ajouterÉcouteur = function(écouteur) {
-		if (écouteurs.indexOf(écouteur) < 0)
+		if (écouteurs.indexOf(écouteur) < 0) {
 			écouteurs.push(écouteur);
+			écouteur(valeur, valeur);
+		}
 	}
 	f.enleverÉcouteur = function(écouteur) {
 		var i = écouteurs.indexOf(écouteur);
@@ -34,11 +36,13 @@ function valeur(v) {
 		return valeur;
 	}
 	f.set = function(v) {
-		var oldv = valeur;
-		valeur = v;
-		$(écouteurs).each(function(i,f){
-			f(v, oldv);
-		});
+		if (v != valeur) {
+			var oldv = valeur;
+			valeur = v;
+			$(écouteurs).each(function(i,f){
+				f(v, oldv);
+			});
+		}
 	}
 	return f;
 }
@@ -67,7 +71,8 @@ $.fn.extend({
 	bindVal: function(valeur) {
 		var that = this;
 		valeur.ajouterÉcouteur(function(valeur, oldval) {
-			that.val(valeur);
+			if (that.val() != valeur)
+				that.val(valeur);
 		});
 		this.val(valeur.get());
 		this.bind("propertychange input cut paste keypress", function() {
@@ -114,7 +119,7 @@ var schémasTypesNoeud = new TypesNoeud(
 				return squeletteAperçuNoeud(this)
 					.children(".contenu").appendVuesEnfants(this, 'aperçu').end();
 			},
-			édition: function() {
+			édition: function() { // TODO : afficher la même chose que "édition.append(...);" (dans la vue de document).
 				return $('<div class="info">Cliquez sur du texte pour le modifier.</div>');
 			}
 		},
@@ -130,13 +135,23 @@ var schémasTypesNoeud = new TypesNoeud(
 			// surcharge de la _fonction_ "vue" (pas le tableau "vues").
 			vue: function() {
 				var html = $('<div class="conteneur-esem"/>');
+				
+				// Paneau Aperçu.
 				var aperçu  = $('<div class="aperçu"/>').appendTo(html).appendVuesEnfants(this, 'aperçu');
+				
+				// Paneau Boutons
 				var boutons = $('<div class="boutons"/>').appendTo(html);
+				
+				// Paneau Édition
 				var édition = $('<div class="éditeur"/>').appendTo(html);
 				this.noeudActif.ajouterÉcouteur(function(actif, oldActif) {
 					édition.empty();
-					édition.append(actif.créerVue("édition"));
+					if (actif !== null)
+						édition.append(actif.créerVue("édition"));
+					else
+						édition.append('<div class="info">Cliquez sur du texte pour le modifier.</div>');
 				});
+				
 				return html;
 			}
 		},
@@ -163,7 +178,13 @@ var schémasTypesNoeud = new TypesNoeud(
 					return ret;
 				},
 				édition: function() {
-					return $('<input type="text"/>').bindVal(this.propriété("texte"));
+					var html = $('<div/>');
+					$('<label>Texte du lien : </label>').appendTo(html);
+					$('<input type="text"/>').bindVal(this.propriété("texte")).appendTo(html);
+					$('<br/>').appendTo(html);
+					$('<label>Cible du lien : </label>').appendTo(html);
+					$('<input type="text"/>').bindVal(this.propriété("cible")).appendTo(html);
+					return html;
 				},
 			},
 			propriétés: {
@@ -177,11 +198,16 @@ var schémasTypesNoeud = new TypesNoeud(
 			enfants: [],
 			vues: {
 				aperçu: function() {
+					var noeud = this;
 					return $('<span class="noeud texte en-ligne"/>')
-						.bindText(this.propriété("texte"));
+						.bindText(this.propriété("texte"))
+						.click(function(){
+							noeud.document().noeudActif.set(noeud);
+							return false;
+						});
 				},
 				édition: function() {
-					return $("<textarea/>").bindVal(this.propriété("texte")); // TODO
+					return $('<textarea rows="10" cols="70"/>').bindVal(this.propriété("texte")); // TODO
 				},
 			},
 			propriétés: {
@@ -347,7 +373,7 @@ var créerDocument = function(schémasTypesNoeud) {
 		var privé_pressePapier = null;
 		
 		var privé_document = {
-			noeudActif: valeur(null),
+			noeudActif: valeur(null), // TODO : vérifier que ce soit bien null ou un noeud
 			schémaTypeNoeud: function(type) {
 				return privé_schémasTypesNoeud[type];
 			},
@@ -376,12 +402,17 @@ var créerDocument = function(schémasTypesNoeud) {
 function éditeurSémantique(textareaOrigine, schémasTypesNoeud) {
 	// XML -> modèle
 	var textareaOrigine = $(textareaOrigine);
-	var xml = $("<document/>").append(textareaOrigine.val()); // Est-ce portable ?.
+	// TODO : Est-ce que le parsage de xml par jQuery est portable ? .
+	// TODO : Utiliser .val() ? ou .text() ?
+	var xml = $("<document/>").append(textareaOrigine.val());
 	var modèle = XMLVersModèle(xml.get(0), schémasTypesNoeud);
 	
 	// Vue
-	var vue = modèle.créerVue(null);
-	textareaOrigine.replaceWith(vue);
+	var vue = modèle.créerVue(null).insertAfter(textareaOrigine);
+	// Il faut garder le textarea d'origine, sinon lors d'un refresh,
+	// le textarea d'origine prend la valeur d'un des textarea affichés
+	// et c'est cette mauvaise valeur qu'on récupère en tant que XML.
+	textareaOrigine.hide();
 	
 	// Debug
 	m = modèle;
