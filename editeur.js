@@ -12,38 +12,64 @@ Object.keys = function(object) {
 	return keys;
 }
 
-function valeur(v) {
-	var valeur = v;
+/* Renvoie un objet composé de trois fonctions :
+ *
+ * ajouterÉcouteur(déclenchementInitial)
+ *     Enregistre un nouvel écouteur, et appelle
+ *     déclenchementInitial si c'est une fonction.
+ *     Cela permet d'initialiser l'écouteur la
+ *     première fois qu'il s'enregistre.
+ * enleverÉcouteur(écouteur)
+ *     Permet enlève écouteur de la liste.
+ * déclencherÉcouteurs(param1, ..., paramN)
+ *     Appelle tous les écouteurs de la liste avec
+ *     param1, ..., paramN comme paramètres.
+ */
+function Écoutable(déclenchementInitial) {
 	var écouteurs = [];
-	var f = function(v) {
-		if (typeof v == "undefined") {
-			return f.get();
-		} else {
-			return f.set(v);
-		}
-	};
-	f.ajouterÉcouteur = function(écouteur) {
-		if (écouteurs.indexOf(écouteur) < 0) {
-			écouteurs.push(écouteur);
-			écouteur(valeur, valeur);
-		}
-	}
-	f.enleverÉcouteur = function(écouteur) {
-		var i = écouteurs.indexOf(écouteur);
-		if (i >= 0) écouteurs.splice(i,1);
-	}
-	f.get = function() {
-		return valeur;
-	}
-	f.set = function(v) {
-		if (v != valeur) {
-			var oldv = valeur;
-			valeur = v;
-			$(écouteurs).each(function(i,f){
-				f(v, oldv);
+	return {
+		ajouterÉcouteur: function(écouteur) {
+			if (écouteurs.indexOf(écouteur) < 0) {
+				écouteurs.push(écouteur);
+				if (déclenchementInitial)
+					déclenchementInitial();
+			}
+		},
+		enleverÉcouteur: function(écouteur) {
+			var i = écouteurs.indexOf(écouteur);
+			if (i >= 0) écouteurs.splice(i,1);
+		},
+		déclencherÉcouteurs: function() {
+			var args = arguments;
+			$(écouteurs).each(function(i,écouteur){
+				écouteur.apply({}, args);
 			});
 		}
+	};
+}
+
+function valeur(v) {
+	var _valeur = v;
+	var écoutable = new Écoutable(function() {
+		// Première fois.
+		écoutable.déclencherÉcouteurs(_valeur, _valeur);
+	});
+	var f = function(v) {
+		return (typeof v == "undefined")
+			? f.get()
+			: f.set(v);
+	};
+	f.get = function() {
+		return _valeur;
 	}
+	f.set = function(v) {
+		if (v != _valeur) {
+			_valeur = v;
+			écoutable.déclencherÉcouteurs(v);
+		}
+	}
+	f.ajouterÉcouteur = écoutable.ajouterÉcouteur;
+	f.enleverÉcouteur = écoutable.enleverÉcouteur;
 	return f;
 }
 
@@ -58,21 +84,32 @@ $.fn.extend({
 		for (var i = 0; i < modèle.nbEnfants(); i++) {
 			this.append(modèle.enfant(i).créerVue(typeVue));
 		}
+		var html = this;
+		modèle.insérerEnfant.ajouterÉcouteur(function(noeud, position) {
+			var v = noeud.créerVue(typeVue);
+			if (position <= 0) {
+				v.prependTo(html);
+			} else if (position >= html.children().size()) {
+				v.appendTo(html);
+			} else {
+				v.insertAfter(html.children().eq(position));
+			}
+		});
 		return this;
 	},
 	bindText: function(valeur) {
 		var that = this;
-		valeur.ajouterÉcouteur(function(valeur, oldval) {
-			that.text(valeur);
+		valeur.ajouterÉcouteur(function(val) {
+			that.text(val);
 		});
 		this.text(valeur.get());
 		return this;
 	},
 	bindVal: function(valeur) {
 		var that = this;
-		valeur.ajouterÉcouteur(function(valeur, oldval) {
-			if (that.val() != valeur)
-				that.val(valeur);
+		valeur.ajouterÉcouteur(function(val) {
+			if (that.val() != val)
+				that.val(val);
 		});
 		this.val(valeur.get());
 		this.bind("propertychange input cut paste keypress", function() {
@@ -124,7 +161,8 @@ var schémasTypesNoeud = new TypesNoeud(
 			}
 		},
 		vue: function (typeVue) {
-			return this.type().vues[typeVue].call(this, typeVue);
+			var tv = this.type().vues[typeVue];
+			return (tv) ? tv.call(this, typeVue) : $("<span/>");
 		},
 		propriétés: {}
 	},
@@ -144,12 +182,13 @@ var schémasTypesNoeud = new TypesNoeud(
 				
 				// Paneau Édition
 				var édition = $('<div class="éditeur"/>').appendTo(html);
-				this.noeudActif.ajouterÉcouteur(function(actif, oldActif) {
+				this.noeudActif.ajouterÉcouteur(function(actif) {
 					édition.empty();
-					if (actif !== null)
+					if (actif !== null) {
 						édition.append(actif.créerVue("édition"));
-					else
+					} else {
 						édition.append('<div class="info">Cliquez sur du texte pour le modifier.</div>');
+					}
 				});
 				
 				return html;
@@ -253,7 +292,9 @@ var créerDocument = function(schémasTypesNoeud) {
 	};
 	function clôture_enfants() {
 		var privé_enfants = [];
-		return {
+		var écoutableInsérer = new Écoutable();
+		var écoutableSupprimer = new Écoutable();
+		var ret = {
 			nbEnfants: function() {
 				return privé_enfants.length;
 			},
@@ -270,15 +311,20 @@ var créerDocument = function(schémasTypesNoeud) {
 				// noeud.setParent() doit être appellé après l'insertion
 				// car setParent vérifie qu'on est bien le parent.
 				noeud.setParent(this);
-				// TODO : modifier la vue
+				écoutableInsérer.déclencherÉcouteurs(noeud, position);
 			},
 			supprimerEnfant: function(position) {
 				var e = privé_enfants.splice(position, 1)[0];
 				e.setParent(null);
-				// TODO : modifier la vue
+				écoutableSupprimer.déclencherÉcouteurs(position);
 				return e;
 			}
 		};
+		ret.insérerEnfant.ajouterÉcouteur = écoutableInsérer.ajouterÉcouteur;
+		ret.insérerEnfant.enleverÉcouteur = écoutableInsérer.enleverÉcouteur;
+		ret.supprimerEnfant.ajouterÉcouteur = écoutableSupprimer.ajouterÉcouteur;
+		ret.supprimerEnfant.enleverÉcouteur = écoutableInsérer.enleverÉcouteur;
+		return ret;
 	};
 	function clôture_type(privé_type) {
 		return {

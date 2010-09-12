@@ -13,3 +13,7 @@ Propriétés d'un noeud (cible pour les liens, source pour les images), pouvoir 
 Faire du M(VC) !!! Modèle -> objet javascript (DOM + focus), vue/contrôleur -> arbre, aperçu, paneau d'édition
 
 Utiliser LESS au lieu de CSS : http://github.com/cloudhead/less.js/tree/master/dist/
+
+Court-terme :
+
+noeud.insérerEnfant(n,pos) doit vérifier que pos n'est pas > nbEnfants et pas < 0
